@@ -1,7 +1,7 @@
 //! Strongly-typed Elm Architecture Messages for Hermes One Desktop (Iced 0.13)
 //! Mirrors the exact navigation and actions of fathah/hermes-desktop.
 
-use crate::models::{AgentCompletionReply, TaskStatus};
+use crate::models::{CompletionReply, TaskStatus};
 
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
 pub enum ActiveTab {
@@ -30,7 +30,7 @@ pub enum Message {
     PrefillSuggestion(String),
     SubmitPrompt,
     SseTick(SseChunk),
-    StreamCompleted(Result<AgentCompletionReply, String>),
+    StreamCompleted(Result<CompletionReply, String>),
     SelectSession(String),
     CreateSession,
     DeleteSession(String),

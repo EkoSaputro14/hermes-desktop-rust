@@ -1,10 +1,13 @@
-name: Build Native Rust Desktop Binaries (Windows, macOS, Linux)
+name: Build & Publish Native Rust Desktop Release (Windows, macOS, Linux)
 
 on:
   push:
     branches: [ main ]
     tags: [ 'v*' ]
   workflow_dispatch:
+
+permissions:
+  contents: write
 
 jobs:
   build-native:
@@ -16,14 +19,17 @@ jobs:
             target: x86_64-pc-windows-msvc
             artifact_name: hermes-desktop-windows-x64.exe
             binary_path: target/release/hermes-desktop.exe
+            release_asset: target/release/hermes-desktop-windows-x64.exe
           - os: macos-latest
             target: aarch64-apple-darwin
             artifact_name: hermes-desktop-macos-arm64
             binary_path: target/release/hermes-desktop
+            release_asset: target/release/hermes-desktop-macos-arm64
           - os: ubuntu-22.04
             target: x86_64-unknown-linux-gnu
             artifact_name: hermes-desktop-linux-x64
             binary_path: target/release/hermes-desktop
+            release_asset: target/release/hermes-desktop-linux-x64
 
     runs-on: ${{ matrix.os }}
 
@@ -48,8 +54,22 @@ jobs:
       - name: Build Optimized Release Binary
         run: cargo build --release
 
+      - name: Prepare Release Asset Name
+        shell: bash
+        run: cp "${{ matrix.binary_path }}" "${{ matrix.release_asset }}"
+
       - name: Upload Native Desktop Binary Artifact
         uses: actions/upload-artifact@v4
         with:
           name: ${{ matrix.artifact_name }}
-          path: ${{ matrix.binary_path }}
+          path: ${{ matrix.release_asset }}
+
+      - name: Publish Binary to GitHub Release (v1.0.0)
+        uses: softprops/action-gh-release@v2
+        with:
+          tag_name: v1.0.0
+          name: "Hermes One Desktop v1.0.0 (Native Rust Iced Edition)"
+          files: ${{ matrix.release_asset }}
+          prerelease: false
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
