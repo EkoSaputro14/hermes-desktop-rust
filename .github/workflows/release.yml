@@ -1,0 +1,55 @@
+name: Build Native Rust Desktop Binaries (Windows, macOS, Linux)
+
+on:
+  push:
+    branches: [ main ]
+    tags: [ 'v*' ]
+  workflow_dispatch:
+
+jobs:
+  build-native:
+    strategy:
+      fail-fast: false
+      matrix:
+        include:
+          - os: windows-latest
+            target: x86_64-pc-windows-msvc
+            artifact_name: hermes-desktop-windows-x64.exe
+            binary_path: target/release/hermes-desktop.exe
+          - os: macos-latest
+            target: aarch64-apple-darwin
+            artifact_name: hermes-desktop-macos-arm64
+            binary_path: target/release/hermes-desktop
+          - os: ubuntu-22.04
+            target: x86_64-unknown-linux-gnu
+            artifact_name: hermes-desktop-linux-x64
+            binary_path: target/release/hermes-desktop
+
+    runs-on: ${{ matrix.os }}
+
+    steps:
+      - name: Checkout Repository
+        uses: actions/checkout@v4
+
+      - name: Install Linux System Dependencies (wgpu / X11 / Wayland)
+        if: runner.os == 'Linux'
+        run: |
+          sudo apt-get update
+          sudo apt-get install -y build-essential pkg-config cmake libx11-dev libwayland-dev libxkbcommon-dev libvulkan-dev libasound2-dev
+
+      - name: Install Rust Stable Toolchain
+        uses: dtolnay/rust-toolchain@stable
+        with:
+          targets: ${{ matrix.target }}
+
+      - name: Cache Cargo Registry & Target
+        uses: Swatinem/rust-cache@v2
+
+      - name: Build Optimized Release Binary
+        run: cargo build --release
+
+      - name: Upload Native Desktop Binary Artifact
+        uses: actions/upload-artifact@v4
+        with:
+          name: ${{ matrix.artifact_name }}
+          path: ${{ matrix.binary_path }}
