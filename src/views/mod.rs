@@ -1,7 +1,9 @@
 //! Native GPU-rendered Iced 0.13 views for Hermes Desktop
 //! Implements Sidebar, Top Bar, Chat SSE, Profiles, Memory, Toolsets, Scheduled Tasks, and Gateways.
 
-use iced::widget::{button, column, container, horizontal_space, row, scrollable, text, text_input, toggler};
+use iced::widget::{
+    button, column, container, horizontal_space, row, scrollable, text, text_input,
+};
 use iced::{Alignment, Element, Length};
 
 use crate::HermesApp;
@@ -36,9 +38,7 @@ pub fn view_sidebar(app: &HermesApp) -> Element<'_, Message> {
     .padding(16)
     .width(Length::Fixed(256.0));
 
-    container(nav_list)
-        .height(Length::Fill)
-        .into()
+    container(nav_list).height(Length::Fill).into()
 }
 
 pub fn view_top_bar(app: &HermesApp) -> Element<'_, Message> {
@@ -113,11 +113,14 @@ pub fn view_chat(app: &HermesApp) -> Element<'_, Message> {
     }
 
     let composer = row![
-        text_input("Ask Hermes Agent, invoke a toolset, or query memory...", &app.prompt_input)
-            .on_input(Message::PromptInputChanged)
-            .on_submit(Message::SubmitPrompt)
-            .padding(10)
-            .size(14),
+        text_input(
+            "Ask Hermes Agent, invoke a toolset, or query memory...",
+            &app.prompt_input
+        )
+        .on_input(Message::PromptInputChanged)
+        .on_submit(Message::SubmitPrompt)
+        .padding(10)
+        .size(14),
         button(text(if app.is_streaming { "Streaming..." } else { "Send" }).size(14))
             .padding([10, 18])
             .on_press(Message::SubmitPrompt),
@@ -125,12 +128,9 @@ pub fn view_chat(app: &HermesApp) -> Element<'_, Message> {
     .spacing(10)
     .padding(16);
 
-    let chat_main = column![
-        scrollable(msg_list).height(Length::Fill),
-        composer,
-    ]
-    .width(Length::Fill)
-    .height(Length::Fill);
+    let chat_main = column![scrollable(msg_list).height(Length::Fill), composer,]
+        .width(Length::Fill)
+        .height(Length::Fill);
 
     row![session_col, chat_main]
         .width(Length::Fill)
@@ -141,7 +141,8 @@ pub fn view_chat(app: &HermesApp) -> Element<'_, Message> {
 pub fn view_profiles(app: &HermesApp) -> Element<'_, Message> {
     let mut list = column![
         text("Agent Profiles & 11+ LLM Providers").size(18),
-        text("Manage isolated ~/.hermes configurations, model endpoints, and system directives.").size(13),
+        text("Manage isolated ~/.hermes configurations, model endpoints, and system directives.")
+            .size(13),
     ]
     .spacing(12)
     .padding(24);
@@ -230,13 +231,15 @@ pub fn view_memory(app: &HermesApp) -> Element<'_, Message> {
 pub fn view_toolsets(app: &HermesApp) -> Element<'_, Message> {
     let mut list = column![
         text("Native Toolsets & ~/.hermes/plugins").size(18),
-        text("Enable or restrict autonomous capabilities and external plugins per agent session.").size(13),
+        text("Enable or restrict autonomous capabilities and external plugins per agent session.")
+            .size(13),
     ]
     .spacing(12)
     .padding(24);
 
     for tool in &app.toolsets {
         let tid = tool.id.clone();
+        let next_state = !tool.enabled;
         list = list.push(
             row![
                 column![
@@ -245,9 +248,9 @@ pub fn view_toolsets(app: &HermesApp) -> Element<'_, Message> {
                 ]
                 .spacing(4)
                 .width(Length::Fill),
-                toggler(tool.enabled)
-                    .label(if tool.enabled { "Enabled" } else { "Disabled" })
-                    .on_toggle(move |state| Message::ToggleToolset(tid.clone(), state)),
+                button(text(if tool.enabled { "Enabled" } else { "Disabled" }).size(12))
+                    .padding([6, 12])
+                    .on_press(Message::ToggleToolset(tid, next_state)),
             ]
             .spacing(16)
             .align_y(Alignment::Center),
@@ -260,7 +263,7 @@ pub fn view_toolsets(app: &HermesApp) -> Element<'_, Message> {
 pub fn view_tasks(app: &HermesApp) -> Element<'_, Message> {
     let mut list = column![
         text("Scheduled Cron Tasks & Autonomous Execution Board").size(18),
-        text("Managed by tokio-cron-scheduler with SQLite WAL state persistence.").size(13),
+        text("Managed by background Tokio scheduler with SQLite WAL state persistence.").size(13),
     ]
     .spacing(12)
     .padding(24);
@@ -302,6 +305,7 @@ pub fn view_gateways(app: &HermesApp) -> Element<'_, Message> {
 
     for gw in &app.gateways {
         let gid = gw.id.clone();
+        let next_state = !gw.enabled;
         list = list.push(
             row![
                 column![
@@ -314,9 +318,9 @@ pub fn view_gateways(app: &HermesApp) -> Element<'_, Message> {
                 ]
                 .spacing(4)
                 .width(Length::Fill),
-                toggler(gw.enabled)
-                    .label(if gw.enabled { "Bridge Active" } else { "Standby" })
-                    .on_toggle(move |state| Message::ToggleGateway(gid.clone(), state)),
+                button(text(if gw.enabled { "Bridge Active" } else { "Standby" }).size(12))
+                    .padding([6, 12])
+                    .on_press(Message::ToggleGateway(gid, next_state)),
             ]
             .spacing(16)
             .align_y(Alignment::Center),

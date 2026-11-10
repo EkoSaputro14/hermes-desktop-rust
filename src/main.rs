@@ -335,13 +335,17 @@ pub fn main() -> iced::Result {
 
     info!("Starting Hermes Desktop (Native Rust Iced Runtime)");
 
-    iced::application(HermesApp::title, HermesApp::update, HermesApp::view)
-        .subscription(HermesApp::subscription)
-        .theme(HermesApp::theme)
-        .window(window::Settings {
-            size: iced::Size::new(1440.0, 900.0),
-            min_size: Some(iced::Size::new(1024.0, 680.0)),
-            ..Default::default()
-        })
-        .run_with(HermesApp::new)
+    iced::application(
+        "Hermes Desktop — Native Rust Edition",
+        HermesApp::update,
+        HermesApp::view,
+    )
+    .subscription(HermesApp::subscription)
+    .theme(HermesApp::theme)
+    .window(window::Settings {
+        size: iced::Size::new(1440.0, 900.0),
+        min_size: Some(iced::Size::new(1024.0, 680.0)),
+        ..Default::default()
+    })
+    .run_with(HermesApp::new)
 }
