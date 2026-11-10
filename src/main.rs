@@ -1,5 +1,5 @@
-//! Hermes Desktop — Native Rust GUI Edition (Iced 0.13 + Tokio + rusqlite)
-//! Replaces Electron main/preload/renderer processes with a single compiled binary.
+//! Hermes One Desktop — Native Rust GUI Edition (Iced 0.13 + Tokio + rusqlite)
+//! Replicates the exact 1:1 layout of fathah/hermes-desktop in a native compiled binary.
 
 #![cfg_attr(not(debug_assertions), windows_subsystem = "windows")]
 
@@ -19,7 +19,7 @@ use crate::db::HermesDatabase;
 use crate::message::{ActiveTab, Message, SseChunk};
 use crate::models::{
     AgentProfile, ChatMessage, ChatSession, GatewayConfig, MemoryCategory,
-    MemoryEntry, ScheduledTask, TaskStatus, ToolsetItem,
+    MemoryEntry, ScheduledTask, ToolsetItem,
 };
 use crate::services::hermes_cli::HermesCliManager;
 use crate::services::sse_client::stream_agent_completion;
@@ -60,7 +60,10 @@ impl HermesApp {
             .map(|p| p.id.clone())
             .unwrap_or_else(|| "prof-default".to_string());
 
-        let sessions = db.list_sessions(&active_profile_id).unwrap_or_default();
+        let mut sessions = db.list_sessions(&active_profile_id).unwrap_or_default();
+        if let Ok(fresh) = db.create_session(&active_profile_id, "New Chat") {
+            sessions.insert(0, fresh);
+        }
         let active_session_id = sessions
             .first()
             .map(|s| s.id.clone())
@@ -93,7 +96,7 @@ impl HermesApp {
             new_task_cron: "0 */6 * * *".to_string(),
             new_task_prompt: String::new(),
             gateways,
-            status_banner: "Ready · ~/.hermes SQLite WAL active".to_string(),
+            status_banner: "gateway · local".to_string(),
         };
 
         (
@@ -103,13 +106,7 @@ impl HermesApp {
     }
 
     pub fn title(&self) -> String {
-        let active_profile = self
-            .profiles
-            .iter()
-            .find(|p| p.id == self.active_profile_id)
-            .map(|p| p.name.as_str())
-            .unwrap_or("Default Profile");
-        format!("Hermes Desktop — {} [Native Rust]", active_profile)
+        "Hermes One Desktop".to_string()
     }
 
     pub fn theme(&self) -> Theme {
@@ -124,6 +121,10 @@ impl HermesApp {
             }
             Message::PromptInputChanged(value) => {
                 self.prompt_input = value;
+                Task::none()
+            }
+            Message::PrefillSuggestion(prompt) => {
+                self.prompt_input = prompt;
                 Task::none()
             }
             Message::SubmitPrompt => {
@@ -163,7 +164,7 @@ impl HermesApp {
                         self.streaming_buffer.push_str(&token);
                     }
                     SseChunk::ToolInvocation(tool_name) => {
-                        self.status_banner = format!("Executing toolset: {}", tool_name);
+                        self.status_banner = format!("Executing: {}", tool_name);
                     }
                 }
                 Task::none()
@@ -182,30 +183,32 @@ impl HermesApp {
                         }
                         self.streaming_buffer.clear();
                         self.status_banner = format!(
-                            "Completed · {} tokens · {}ms",
+                            "{} tokens · {}ms",
                             reply.token_count, reply.latency_ms
                         );
                     }
                     Err(err) => {
                         error!("Agent stream error: {}", err);
-                        self.status_banner = format!("Stream error: {}", err);
+                        self.status_banner = format!("Error: {}", err);
                     }
                 }
                 Task::none()
             }
             Message::SelectSession(session_id) => {
                 self.active_session_id = session_id.clone();
+                self.active_tab = ActiveTab::Chat;
                 self.messages = self.db.list_messages(&session_id).unwrap_or_default();
                 Task::none()
             }
             Message::CreateSession => {
                 if let Ok(session) = self
                     .db
-                    .create_session(&self.active_profile_id, "New Agent Session")
+                    .create_session(&self.active_profile_id, "New Chat")
                 {
                     self.active_session_id = session.id.clone();
                     self.sessions.insert(0, session);
                     self.messages.clear();
+                    self.active_tab = ActiveTab::Chat;
                 }
                 Task::none()
             }
@@ -236,7 +239,6 @@ impl HermesApp {
                 Task::none()
             }
             Message::VerifyHermesInstall => {
-                self.status_banner = "Checking ~/.hermes environment & plugins...".to_string();
                 Task::perform(HermesCliManager::verify_environment(), Message::HermesEnvChecked)
             }
             Message::HermesEnvChecked(summary) => {
@@ -302,22 +304,31 @@ impl HermesApp {
 
     pub fn view(&self) -> Element<'_, Message> {
         let sidebar = views::view_sidebar(self);
-        let top_bar = views::view_top_bar(self);
+        let sessions_bar = views::view_active_sessions_bar(self);
+        let status_bar = views::view_status_bar(self);
 
         let content = match self.active_tab {
             ActiveTab::Chat => views::view_chat(self),
-            ActiveTab::Profiles => views::view_profiles(self),
-            ActiveTab::Memory => views::view_memory(self),
-            ActiveTab::Toolsets => views::view_toolsets(self),
-            ActiveTab::ScheduledTasks => views::view_tasks(self),
+            ActiveTab::Discover => views::view_discover(self),
+            ActiveTab::Office => views::view_office(self),
+            ActiveTab::Kanban => views::view_kanban(self),
+            ActiveTab::Schedules => views::view_tasks(self),
+            ActiveTab::Providers => views::view_profiles(self),
             ActiveTab::Gateways => views::view_gateways(self),
+            ActiveTab::Toolsets => views::view_toolsets(self),
+            ActiveTab::Memory => views::view_memory(self),
+            ActiveTab::Profiles => views::view_profiles(self),
         };
 
-        let main_column = column![top_bar, content]
+        let main_column = column![sessions_bar, content]
             .width(Length::Fill)
             .height(Length::Fill);
 
-        container(row![sidebar, main_column].width(Length::Fill).height(Length::Fill))
+        let top_row = row![sidebar, main_column]
+            .width(Length::Fill)
+            .height(Length::Fill);
+
+        container(column![top_row, status_bar].width(Length::Fill).height(Length::Fill))
             .width(Length::Fill)
             .height(Length::Fill)
             .into()
@@ -333,18 +344,18 @@ pub fn main() -> iced::Result {
         .with_env_filter("hermes_desktop=info")
         .init();
 
-    info!("Starting Hermes Desktop (Native Rust Iced Runtime)");
+    info!("Starting Hermes One Desktop (Native Rust Iced Runtime)");
 
     iced::application(
-        "Hermes Desktop — Native Rust Edition",
+        "Hermes One Desktop",
         HermesApp::update,
         HermesApp::view,
     )
     .subscription(HermesApp::subscription)
     .theme(HermesApp::theme)
     .window(window::Settings {
-        size: iced::Size::new(1440.0, 900.0),
-        min_size: Some(iced::Size::new(1024.0, 680.0)),
+        size: iced::Size::new(1360.0, 860.0),
+        min_size: Some(iced::Size::new(960.0, 640.0)),
         ..Default::default()
     })
     .run_with(HermesApp::new)
