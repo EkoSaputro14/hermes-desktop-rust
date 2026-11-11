@@ -39,7 +39,6 @@ impl HermesCliManager {
             let _ = fs::write(&config_path, default_yaml).await;
         }
 
-        // Check if `hermes` CLI binary is available in PATH or ~/.hermes/venv/bin/hermes
         let cli_check = Command::new("hermes")
             .arg("--version")
             .output()
@@ -47,10 +46,15 @@ impl HermesCliManager {
 
         match cli_check {
             Ok(out) if out.status.success() => {
-                let ver = String::from_utf8_lossy(&out.stdout).trim().to_string();
-                format!("Verified ~/.hermes · CLI {} · SQLite WAL Ready", ver)
+                let raw = String::from_utf8_lossy(&out.stdout);
+                let first_line = raw
+                    .lines()
+                    .next()
+                    .unwrap_or("hermes-agent")
+                    .trim();
+                format!("local ({})", first_line)
             }
-            _ => "Verified ~/.hermes directory tree & config.yaml · Embedded Rust Agent Engine active".to_string(),
+            _ => "local".to_string(),
         }
     }
 }

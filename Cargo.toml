@@ -1,27 +1,27 @@
 [package]
 name = "hermes-desktop"
-version = "0.4.0"
+version = "1.0.1"
 edition = "2021"
 authors = ["Hermes Desktop Rust Contributors"]
-description = "Native Rust GUI companion for NousResearch Hermes Agent — Iced + Tokio + rusqlite edition"
+description = "Hermes One Desktop — Native Rust GUI (Iced 0.13 + Tokio + rusqlite)"
 license = "MIT"
 repository = "https://github.com/EkoSaputro14/hermes-desktop-rust"
 
 [dependencies]
-# Native GPU-accelerated Elm-architecture GUI (replaces Electron + Chromium)
-iced = { version = "0.13.1", features = ["tokio"] }
+# Native GPU-accelerated Elm-architecture GUI with SVG vector icon support
+iced = { version = "0.13.1", features = ["tokio", "svg"] }
 
-# Async runtime & process orchestration (replaces Node.js main process & IPC)
+# Async runtime & process orchestration
 tokio = { version = "1.42.0", features = ["full"] }
 futures = "0.3.31"
 
-# Embedded SQLite with bundled C library (replaces better-sqlite3)
+# Embedded SQLite with bundled C library
 rusqlite = { version = "0.32.1", features = ["bundled"] }
 
-# HTTP & Server-Sent Events streaming for 11+ LLM providers
+# HTTP & Server-Sent Events streaming
 reqwest = { version = "0.12.9", default-features = false, features = ["json", "stream", "rustls-tls"] }
 
-# Serialization & configuration (~/.hermes/config.yaml & plugins)
+# Serialization & configuration
 serde = { version = "1.0.215", features = ["derive"] }
 serde_json = "1.0.133"
 

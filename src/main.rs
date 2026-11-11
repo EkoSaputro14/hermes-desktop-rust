@@ -1,9 +1,10 @@
 //! Hermes One Desktop — Native Rust GUI Edition (Iced 0.13 + Tokio + rusqlite)
-//! Replicates the exact 1:1 layout of fathah/hermes-desktop in a native compiled binary.
+//! Replicates the exact 1:1 layout and dark theme of fathah/hermes-desktop.
 
 #![cfg_attr(not(debug_assertions), windows_subsystem = "windows")]
 
 mod db;
+mod icons;
 mod message;
 mod models;
 mod services;
@@ -96,7 +97,7 @@ impl HermesApp {
             new_task_cron: "0 */6 * * *".to_string(),
             new_task_prompt: String::new(),
             gateways,
-            status_banner: "gateway · local".to_string(),
+            status_banner: "local".to_string(),
         };
 
         (
@@ -164,7 +165,7 @@ impl HermesApp {
                         self.streaming_buffer.push_str(&token);
                     }
                     SseChunk::ToolInvocation(tool_name) => {
-                        self.status_banner = format!("Executing: {}", tool_name);
+                        self.status_banner = format!("tool: {}", tool_name);
                     }
                 }
                 Task::none()
@@ -182,14 +183,9 @@ impl HermesApp {
                             self.messages.push(saved);
                         }
                         self.streaming_buffer.clear();
-                        self.status_banner = format!(
-                            "{} tokens · {}ms",
-                            reply.token_count, reply.latency_ms
-                        );
                     }
                     Err(err) => {
                         error!("Agent stream error: {}", err);
-                        self.status_banner = format!("Error: {}", err);
                     }
                 }
                 Task::none()
@@ -213,6 +209,9 @@ impl HermesApp {
                 Task::none()
             }
             Message::DeleteSession(session_id) => {
+                if self.sessions.len() <= 1 {
+                    return Task::none();
+                }
                 let _ = self.db.delete_session(&session_id);
                 self.sessions.retain(|s| s.id != session_id);
                 if self.active_session_id == session_id {
@@ -320,9 +319,14 @@ impl HermesApp {
             ActiveTab::Profiles => views::view_profiles(self),
         };
 
-        let main_column = column![sessions_bar, content]
-            .width(Length::Fill)
-            .height(Length::Fill);
+        let main_column = container(
+            column![sessions_bar, content]
+                .width(Length::Fill)
+                .height(Length::Fill),
+        )
+        .width(Length::Fill)
+        .height(Length::Fill)
+        .style(theme::main_container);
 
         let top_row = row![sidebar, main_column]
             .width(Length::Fill)
@@ -331,6 +335,7 @@ impl HermesApp {
         container(column![top_row, status_bar].width(Length::Fill).height(Length::Fill))
             .width(Length::Fill)
             .height(Length::Fill)
+            .style(theme::main_container)
             .into()
     }
 
